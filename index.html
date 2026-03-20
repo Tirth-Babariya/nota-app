@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nota — Synced Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root[data-theme="dark"] {
+    --bg:#0a0a0a;--bg2:#111111;--bg3:#1a1a1a;--bg4:#222222;
+    --border:#2a2a2a;--border2:#333333;
+    --text:#f0ede8;--text2:#a09a92;--text3:#5a5550;
+    --accent2:#e8b96a;--accent3:#c4873a;
+    --danger:#c0392b;--danger-soft:rgba(192,57,43,.12);
+    --success:#27ae60;--tag-bg:#1e1e1e;
+    --shadow:0 8px 40px rgba(0,0,0,.6);--shadow-sm:0 2px 12px rgba(0,0,0,.4);
+    --card-hover:#161616;--input-bg:#141414;
+  }
+  :root[data-theme="light"] {
+    --bg:#f8f5f0;--bg2:#ffffff;--bg3:#f2ede6;--bg4:#e8e1d8;
+    --border:#ddd6cc;--border2:#ccc4b8;
+    --text:#1a1714;--text2:#6b6258;--text3:#a09890;
+    --accent2:#c07820;--accent3:#8a5210;
+    --danger:#c0392b;--danger-soft:rgba(192,57,43,.08);
+    --success:#27ae60;--tag-bg:#ede8e0;
+    --shadow:0 8px 40px rgba(0,0,0,.1);--shadow-sm:0 2px 12px rgba(0,0,0,.07);
+    --card-hover:#f5f0e8;--input-bg:#faf7f3;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .35s,color .35s;overflow-x:hidden;}
+
+  /* ─── SCREENS ─── */
+  .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:200;}
+  .screen.hidden{display:none;}
+
+  /* ─── SETUP SCREEN ─── */
+  .setup-card{
+    background:var(--bg2);border:1px solid var(--border2);border-radius:24px;
+    padding:44px 48px;width:500px;max-width:95vw;box-shadow:var(--shadow);
+    animation:fadeUp .4s ease both;
+  }
+  .setup-logo{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .logo-dot{width:10px;height:10px;border-radius:50%;background:var(--accent2);display:inline-block;}
+  .setup-tagline{color:var(--text2);font-size:14px;margin-bottom:32px;line-height:1.55;}
+  .setup-label{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:7px;}
+  .setup-input{
+    width:100%;background:var(--input-bg);border:1px solid var(--border);
+    border-radius:10px;padding:11px 14px;color:var(--text);font-size:13.5px;
+    font-family:'DM Mono',monospace;outline:none;transition:all .2s;margin-bottom:14px;
+  }
+  .setup-input:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(200,130,50,.12);}
+  .setup-input::placeholder{color:var(--text3);}
+  .setup-btn{
+    width:100%;padding:13px;background:var(--accent2);color:#1a1000;border:none;
+    border-radius:10px;font-size:14.5px;font-weight:600;cursor:pointer;
+    font-family:'DM Sans',sans-serif;transition:all .2s;margin-top:4px;letter-spacing:.2px;
+  }
+  .setup-btn:hover{background:var(--accent3);color:#fff;transform:translateY(-1px);box-shadow:0 4px 20px rgba(200,130,50,.35);}
+  .steps-box{margin-top:24px;background:var(--bg3);border-radius:12px;padding:18px 20px;border-left:3px solid var(--accent2);}
+  .steps-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);font-family:'DM Mono',monospace;margin-bottom:12px;}
+  .step{display:flex;gap:10px;align-items:flex-start;margin-bottom:9px;}
+  .step:last-child{margin-bottom:0;}
+  .step-n{width:20px;height:20px;border-radius:50%;background:var(--accent2);color:#1a1000;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+  .step-t{font-size:12.5px;color:var(--text2);line-height:1.55;}
+  .step-t code{font-family:'DM Mono',monospace;background:var(--bg4);padding:1px 6px;border-radius:4px;font-size:11.5px;color:var(--accent2);}
+  .sql-block{background:var(--bg4);border-radius:8px;padding:10px 14px;margin-top:6px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);line-height:1.6;border:1px solid var(--border);}
+
+  /* ─── LOGIN SCREEN ─── */
+  .login-card{
+    background:var(--bg2);border:1px solid var(--border2);border-radius:24px;
+    padding:52px 52px;width:420px;max-width:95vw;box-shadow:var(--shadow);
+    text-align:center;animation:fadeUp .4s ease both;
+  }
+  .login-logo{font-family:'Playfair Display',serif;font-size:32px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;}
+  .login-sub{color:var(--text2);font-size:14.5px;margin-bottom:40px;line-height:1.55;}
+  .google-btn{
+    width:100%;padding:14px 20px;background:var(--bg3);border:1px solid var(--border2);
+    border-radius:12px;cursor:pointer;font-size:15px;font-weight:500;color:var(--text);
+    font-family:'DM Sans',sans-serif;transition:all .2s;display:flex;align-items:center;
+    justify-content:center;gap:12px;
+  }
+  .google-btn:hover{background:var(--bg4);border-color:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(200,130,50,.15);}
+  .google-icon{width:20px;height:20px;flex-shrink:0;}
+  .login-note{margin-top:20px;font-size:12px;color:var(--text3);line-height:1.6;}
+  .reset-link{font-size:12px;color:var(--text3);margin-top:16px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+  .reset-link:hover{color:var(--text2);}
+
+  /* ─── LOADING ─── */
+  .loading-card{text-align:center;}
+  .spinner{width:40px;height:40px;border:2px solid var(--border2);border-top-color:var(--accent2);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px;}
+  .loading-text{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ─── APP ─── */
+  .app{display:flex;height:100vh;}
+
+  /* ─── SIDEBAR ─── */
+  .sidebar{width:280px;min-width:280px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;transition:background .35s,border-color .35s;}
+  .sidebar-head{padding:24px 20px 18px;border-bottom:1px solid var(--border);position:relative;}
+  .sidebar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;}
+  .logo-dot-sm{width:8px;height:8px;border-radius:50%;background:var(--accent2);display:inline-block;}
+  .top-actions{display:flex;gap:6px;align-items:center;}
+  .icon-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:5px 9px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .2s;font-family:'DM Mono',monospace;}
+  .icon-btn:hover{background:var(--bg4);color:var(--text);}
+  .user-row{display:flex;align-items:center;gap:8px;}
+  .user-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1a1000;flex-shrink:0;overflow:hidden;}
+  .user-avatar img{width:100%;height:100%;object-fit:cover;}
+  .user-name{font-size:12.5px;color:var(--text2);font-family:'DM Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
+  .logout-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;color:var(--text3);transition:all .2s;font-family:'DM Mono',monospace;flex-shrink:0;}
+  .logout-btn:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-soft);}
+  .search-wrap{position:relative;padding:12px 12px 0;}
+  .search-icon{position:absolute;left:24px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none;}
+  .search-box{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:9px 14px 9px 36px;color:var(--text);font-size:13.5px;font-family:'DM Sans',sans-serif;outline:none;transition:all .2s;}
+  .search-box:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(200,130,50,.12);}
+  .search-box::placeholder{color:var(--text3);}
+  .sidebar-stats{display:flex;padding:10px 12px 0;}
+  .stat{flex:1;text-align:center;padding:7px 4px;border-radius:8px;cursor:pointer;transition:background .15s;}
+  .stat:hover,.stat.active{background:var(--bg3);}
+  .stat-num{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;color:var(--accent2);}
+  .stat-label{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+  .notes-list{flex:1;overflow-y:auto;padding:8px 12px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+  .notes-list::-webkit-scrollbar{width:4px;}
+  .notes-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  .list-label{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);padding:8px 4px 6px;font-family:'DM Mono',monospace;}
+  .note-card{padding:12px 14px;border-radius:10px;cursor:pointer;margin-bottom:4px;border:1px solid transparent;transition:all .18s;position:relative;overflow:hidden;animation:slideIn .18s ease both;}
+  .note-card:hover{background:var(--card-hover);border-color:var(--border);}
+  .note-card.active{background:var(--bg3);border-color:var(--border2);}
+  .note-card.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:2px;background:var(--accent2);border-radius:0 2px 2px 0;}
+  .nc-title{font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;}
+  .nc-preview{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;}
+  .nc-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+  .nc-date{font-size:10.5px;color:var(--text3);font-family:'DM Mono',monospace;}
+  .nc-tag{font-size:10px;padding:2px 8px;border-radius:20px;background:var(--tag-bg);color:var(--text2);border:1px solid var(--border);font-family:'DM Mono',monospace;}
+  .tag-work{border-color:#3498db44;color:#5dade2;background:rgba(52,152,219,.08);}
+  .tag-personal{border-color:#9b59b644;color:#af7ac5;background:rgba(155,89,182,.08);}
+  .tag-idea{border-color:#2ecc7144;color:#58d68d;background:rgba(46,204,113,.08);}
+  .tag-urgent{border-color:#e74c3c44;color:#ec7063;background:rgba(231,76,60,.08);}
+  .new-btn{margin:12px;padding:11px;background:var(--accent2);color:#1a1000;border:none;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:'DM Sans',sans-serif;transition:all .2s;}
+  .new-btn:hover{background:var(--accent3);transform:translateY(-1px);box-shadow:0 4px 16px rgba(200,130,50,.3);}
+
+  /* ─── EDITOR ─── */
+  .main{flex:1;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;}
+  .editor-toolbar{padding:20px 32px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);background:var(--bg2);transition:background .35s;}
+  .toolbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+  .title-input{flex:1;background:transparent;border:none;outline:none;font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--text);min-width:0;}
+  .title-input::placeholder{color:var(--text3);}
+  .toolbar-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+  .btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);font-family:'DM Sans',sans-serif;transition:all .18s;display:flex;align-items:center;gap:5px;}
+  .btn:hover{background:var(--bg4);color:var(--text);border-color:var(--border2);}
+  .btn-save{background:var(--accent2);color:#1a1000;border-color:transparent;font-weight:600;}
+  .btn-save:hover{background:var(--accent3);color:#fff;box-shadow:0 2px 12px rgba(200,130,50,.3);}
+  .btn-delete{color:var(--danger);}
+  .btn-delete:hover{background:var(--danger-soft);border-color:var(--danger);color:var(--danger);}
+  .meta-row{background:var(--bg2);padding:10px 32px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .meta-date{font-size:11.5px;color:var(--text3);font-family:'DM Mono',monospace;}
+  .tag-select{background:var(--tag-bg);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11.5px;color:var(--text2);cursor:pointer;outline:none;font-family:'DM Mono',monospace;transition:all .18s;}
+  .tag-select:focus{border-color:var(--accent2);}
+  .pinned-toggle{background:transparent;border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11.5px;color:var(--text3);cursor:pointer;font-family:'DM Mono',monospace;transition:all .18s;display:flex;align-items:center;gap:4px;}
+  .pinned-toggle.pinned{border-color:var(--accent2);color:var(--accent2);background:rgba(200,130,50,.08);}
+  .word-count{margin-left:auto;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;}
+  .editor-area{flex:1;padding:32px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+  .editor-area::-webkit-scrollbar{width:5px;}
+  .editor-area::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  .content-input{width:100%;min-height:calc(100vh - 260px);background:transparent;border:none;outline:none;font-size:15.5px;line-height:1.85;color:var(--text);font-family:'DM Sans',sans-serif;resize:none;font-weight:300;letter-spacing:.1px;}
+  .content-input::placeholder{color:var(--text3);}
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text3);text-align:center;padding:40px;}
+  .empty-icon{font-size:52px;opacity:.4;}
+  .empty-title{font-family:'Playfair Display',serif;font-size:22px;color:var(--text2);}
+  .empty-sub{font-size:14px;max-width:260px;line-height:1.6;}
+
+  /* ─── SYNC BAR ─── */
+  .sync-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:7px 16px;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:7px;box-shadow:var(--shadow-sm);z-index:50;font-family:'DM Mono',monospace;transition:all .3s;opacity:0;pointer-events:none;white-space:nowrap;}
+  .sync-bar.visible{opacity:1;}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s;}
+  .sync-dot.syncing{background:var(--accent2);animation:pulse 1s infinite;}
+  .sync-dot.synced{background:var(--success);}
+  .sync-dot.error{background:var(--danger);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+  /* ─── TOAST ─── */
+  .toast{position:fixed;bottom:28px;right:28px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 20px;font-size:13.5px;color:var(--text);box-shadow:var(--shadow);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:999;display:flex;align-items:center;gap:8px;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast.success{border-left:3px solid var(--success);}
+  .toast.error{border-left:3px solid var(--danger);}
+  .toast.info{border-left:3px solid var(--accent2);}
+
+  /* ─── MODAL ─── */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+  .modal-overlay.open{opacity:1;pointer-events:all;}
+  .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:32px;width:380px;box-shadow:var(--shadow);transform:scale(.95);transition:transform .25s cubic-bezier(.34,1.56,.64,1);}
+  .modal-overlay.open .modal{transform:scale(1);}
+  .modal-title{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:10px;}
+  .modal-sub{font-size:13.5px;color:var(--text2);line-height:1.6;margin-bottom:24px;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+  .btn-cancel{background:var(--bg3);color:var(--text2);}
+  .btn-confirm{background:var(--danger);color:white;border-color:transparent;font-weight:600;}
+  .btn-confirm:hover{background:#a93226;color:white;}
+  .no-results{padding:24px 8px;text-align:center;color:var(--text3);font-size:12.5px;font-family:'DM Mono',monospace;}
+
+  @keyframes slideIn{from{opacity:0;transform:translateX(-10px);}to{opacity:1;transform:translateX(0);}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+
+<!-- ── SETUP SCREEN ── -->
+<div class="screen" id="screenSetup">
+  <div class="setup-card">
+    <div class="setup-logo"><span class="logo-dot"></span> Nota — Setup</div>
+    <div class="setup-tagline">Connect Supabase once. Then sign in with Google from any device — your notes follow you everywhere.</div>
+
+    <div class="setup-label">Supabase Project URL</div>
+    <input class="setup-input" id="setupUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
+
+    <div class="setup-label">Supabase Anon Key</div>
+    <input class="setup-input" id="setupKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+
+    <button class="setup-btn" onclick="saveConfig()">Save & Continue →</button>
+
+    <div class="steps-box">
+      <div class="steps-title">One-time Supabase Setup</div>
+      <div class="step"><div class="step-n">1</div><div class="step-t">Go to <strong>supabase.com</strong> → create a free project</div></div>
+      <div class="step"><div class="step-n">2</div><div class="step-t">Open <strong>SQL Editor</strong> and run:
+        <div class="sql-block">create table notes (<br>
+&nbsp;&nbsp;id text primary key,<br>
+&nbsp;&nbsp;user_id uuid references auth.users not null,<br>
+&nbsp;&nbsp;title text default '',<br>
+&nbsp;&nbsp;content text default '',<br>
+&nbsp;&nbsp;tag text default 'none',<br>
+&nbsp;&nbsp;pinned boolean default false,<br>
+&nbsp;&nbsp;created_at bigint,<br>
+&nbsp;&nbsp;updated_at bigint<br>
+);<br><br>
+-- Row Level Security<br>
+alter table notes enable row level security;<br>
+create policy "Users own notes" on notes<br>
+&nbsp;&nbsp;for all using (auth.uid() = user_id);</div>
+      </div></div>
+      <div class="step"><div class="step-n">3</div><div class="step-t">Go to <strong>Authentication → Providers</strong>, enable <strong>Google</strong>, add your OAuth credentials (or use Supabase's built-in Google OAuth)</div></div>
+      <div class="step"><div class="step-n">4</div><div class="step-t">In <strong>Authentication → URL Configuration</strong>, add this page's URL to <code>Redirect URLs</code></div></div>
+      <div class="step"><div class="step-n">5</div><div class="step-t">Paste your <strong>Project URL</strong> and <strong>anon key</strong> from <strong>Settings → API</strong> above</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── LOADING SCREEN ── -->
+<div class="screen" id="screenLoading">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Initialising…</div>
+  </div>
+</div>
+
+<!-- ── LOGIN SCREEN ── -->
+<div class="screen hidden" id="screenLogin">
+  <div class="login-card">
+    <div class="login-logo"><span class="logo-dot"></span> Nota</div>
+    <div class="login-sub">Your notes, synced across every device.<br>Sign in once — access everywhere.</div>
+    <button class="google-btn" onclick="signInGoogle()">
+      <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+    <div class="login-note">No account needed — your Google identity secures your notes automatically.</div>
+    <div class="reset-link" onclick="resetConfig()">Change Supabase project</div>
+  </div>
+</div>
+
+<!-- ── MAIN APP ── -->
+<div class="app hidden" id="screenApp">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-top">
+        <div class="logo"><span class="logo-dot-sm"></span> Nota</div>
+        <div class="top-actions">
+          <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">☀</button>
+          <button class="icon-btn" onclick="loadNotes()" title="Refresh">⟳</button>
+        </div>
+      </div>
+      <div class="user-row">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span class="user-name" id="userName">—</span>
+        <button class="logout-btn" onclick="signOut()">Sign out</button>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input class="search-box" id="searchBox" placeholder="Search notes…" oninput="renderList()">
+    </div>
+    <div class="sidebar-stats">
+      <div class="stat active" id="filterAll" onclick="setFilter('all')"><div class="stat-num" id="statAll">0</div><div class="stat-label">All</div></div>
+      <div class="stat" id="filterPinned" onclick="setFilter('pinned')"><div class="stat-num" id="statPinned">0</div><div class="stat-label">Pinned</div></div>
+      <div class="stat" id="filterToday" onclick="setFilter('today')"><div class="stat-num" id="statToday">0</div><div class="stat-label">Today</div></div>
+    </div>
+    <div class="notes-list" id="notesList"></div>
+    <button class="new-btn" onclick="createNote()">＋ New Note</button>
+  </aside>
+
+  <main class="main" id="mainArea">
+    <div class="empty-state">
+      <div class="empty-icon">📝</div>
+      <div class="empty-title">Select a note</div>
+      <div class="empty-sub">Create a new note or pick one from the sidebar to start writing.</div>
+    </div>
+  </main>
+</div>
+
+<!-- SYNC BAR -->
+<div class="sync-bar" id="syncBar"><div class="sync-dot" id="syncDot"></div><span id="syncText">Synced</span></div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-title">Delete this note?</div>
+    <div class="modal-sub">This is permanent and will remove the note across all your devices.</div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-confirm" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── GLOBALS ───
+let sb = null;
+let currentUser = null;
+let notes = [];
+let activeId = null;
+let deleteTarget = null;
+let filter = 'all';
+let saveTimer = null;
+const TAGS = ['none','work','personal','idea','urgent'];
+
+// ─── SCREENS ───
+function show(id) {
+  ['screenSetup','screenLoading','screenLogin','screenApp'].forEach(s => {
+    const el = document.getElementById(s);
+    el.classList.toggle('hidden', s !== id);
+    if (s === id) el.classList.remove('hidden');
+  });
+}
+function setLoading(text) { show('screenLoading'); document.getElementById('loadingText').textContent = text; }
+
+// ─── INIT ───
+async function init() {
+  const url = localStorage.getItem('nota_sb_url');
+  const key = localStorage.getItem('nota_sb_key');
+  if (!url || !key) { show('screenSetup'); return; }
+
+  setLoading('Connecting…');
+  try {
+    sb = window.supabase.createClient(url, key);
+
+    // Handle OAuth redirect
+    const { data: { session }, error } = await sb.auth.getSession();
+    if (error) throw error;
+
+    if (session?.user) {
+      await startApp(session.user);
+    } else {
+      show('screenLogin');
+    }
+
+    // Listen for auth changes
+    sb.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) await startApp(session.user);
+      if (event === 'SIGNED_OUT') { currentUser = null; notes = []; show('screenLogin'); }
+    });
+
+  } catch(e) {
+    show('screenSetup');
+    toast('Connection failed — check your Supabase credentials', 'error');
+  }
+}
+
+async function saveConfig() {
+  const url = document.getElementById('setupUrl').value.trim();
+  const key = document.getElementById('setupKey').value.trim();
+  if (!url || !key) { toast('Fill in both fields', 'error'); return; }
+  if (!url.startsWith('https://')) { toast('URL must start with https://', 'error'); return; }
+  localStorage.setItem('nota_sb_url', url);
+  localStorage.setItem('nota_sb_key', key);
+  await init();
+}
+
+function resetConfig() {
+  localStorage.removeItem('nota_sb_url');
+  localStorage.removeItem('nota_sb_key');
+  show('screenSetup');
+}
+
+// ─── AUTH ───
+async function signInGoogle() {
+  setLoading('Redirecting to Google…');
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.href }
+  });
+  if (error) { show('screenLogin'); toast('Google sign-in failed: ' + error.message, 'error'); }
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  toast('Signed out', 'info');
+}
+
+// ─── START APP ───
+async function startApp(user) {
+  currentUser = user;
+  show('screenApp');
+
+  // User avatar/name
+  const meta = user.user_metadata || {};
+  const name = meta.full_name || meta.name || user.email?.split('@')[0] || 'User';
+  const avatar = meta.avatar_url || meta.picture;
+  document.getElementById('userName').textContent = name;
+  const av = document.getElementById('userAvatar');
+  if (avatar) { av.innerHTML = `<img src="${avatar}" alt="${name}">`; }
+  else { av.textContent = name.charAt(0).toUpperCase(); }
+
+  // Theme
+  const t = localStorage.getItem('nota_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '☀' : '☽';
+
+  await loadNotes();
+  subscribeRealtime();
+}
+
+// ─── REALTIME ───
+function subscribeRealtime() {
+  sb.channel('notes-rt')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'notes',
+      filter: `user_id=eq.${currentUser.id}`
+    }, payload => {
+      const { eventType, new: nr, old: or } = payload;
+      if (eventType === 'INSERT' || eventType === 'UPDATE') {
+        const idx = notes.findIndex(n => n.id === nr.id);
+        const mapped = mapRow(nr);
+        if (idx >= 0) notes[idx] = mapped; else notes.unshift(mapped);
+        if (activeId === nr.id) refreshEditorMeta(mapped);
+      } else if (eventType === 'DELETE') {
+        notes = notes.filter(n => n.id !== or.id);
+        if (activeId === or.id) { activeId = notes[0]?.id||null; renderEditor(); }
+      }
+      renderList();
+      setSyncStatus('synced', 'Synced from another device');
+    })
+    .subscribe();
+}
+
+// ─── LOAD ───
+async function loadNotes() {
+  setSyncStatus('syncing', 'Loading…');
+  const { data, error } = await sb.from('notes').select('*')
+    .eq('user_id', currentUser.id).order('updated_at', { ascending: false });
+  if (error) { setSyncStatus('error', 'Load failed'); toast('Could not load notes', 'error'); return; }
+  notes = (data||[]).map(mapRow);
+  activeId = notes[0]?.id || null;
+  renderList();
+  renderEditor();
+  setSyncStatus('synced', 'All notes synced');
+}
+
+function mapRow(r) {
+  return { id:r.id, title:r.title||'', content:r.content||'', tag:r.tag||'none', pinned:!!r.pinned, createdAt:r.created_at, updatedAt:r.updated_at };
+}
+
+// ─── SYNC STATUS ───
+let syncHideTimer;
+function setSyncStatus(state, text) {
+  const bar = document.getElementById('syncBar');
+  const dot = document.getElementById('syncDot');
+  clearTimeout(syncHideTimer);
+  bar.classList.add('visible');
+  dot.className = `sync-dot ${state}`;
+  document.getElementById('syncText').textContent = text;
+  if (state === 'synced') syncHideTimer = setTimeout(() => bar.classList.remove('visible'), 2800);
+}
+
+// ─── HELPERS ───
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+function fmtDate(ts) {
+  const d=new Date(ts),now=new Date(),diff=(now-d)/1000;
+  if(diff<60) return 'just now';
+  if(diff<3600) return `${Math.floor(diff/60)}m ago`;
+  if(diff<86400&&d.toDateString()===now.toDateString()) return `${Math.floor(diff/3600)}h ago`;
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function wordCount(s){return s.trim()?s.trim().split(/\s+/).length:0;}
+function isToday(ts){return new Date(ts).toDateString()===new Date().toDateString();}
+function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function toast(msg,type='success'){
+  const el=document.getElementById('toast');
+  el.innerHTML=(type==='success'?'✓ ':type==='error'?'✕ ':'↑ ')+msg;
+  el.className=`toast ${type} show`;
+  setTimeout(()=>el.className='toast',2600);
+}
+
+// ─── THEME ───
+function toggleTheme(){
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',isDark?'light':'dark');
+  document.getElementById('themeBtn').textContent=isDark?'☽':'☀';
+  localStorage.setItem('nota_theme',isDark?'light':'dark');
+}
+
+// ─── FILTER ───
+function setFilter(f){
+  filter=f;
+  ['All','Pinned','Today'].forEach(x=>document.getElementById('filter'+x).classList.toggle('active',f===x.toLowerCase()));
+  renderList();
+}
+
+// ─── CREATE ───
+async function createNote(){
+  const note={id:uid(),title:'',content:'',tag:'none',pinned:false,createdAt:Date.now(),updatedAt:Date.now()};
+  notes.unshift(note);
+  activeId=note.id;
+  renderList();
+  renderEditor();
+  setTimeout(()=>document.getElementById('titleInput')?.focus(),50);
+  await pushNote(note);
+  toast('Note created');
+}
+
+// ─── PUSH ───
+async function pushNote(note){
+  setSyncStatus('syncing','Saving…');
+  const {error}=await sb.from('notes').upsert({
+    id:note.id,user_id:currentUser.id,
+    title:note.title,content:note.content,
+    tag:note.tag,pinned:note.pinned,
+    created_at:note.createdAt,updated_at:note.updatedAt
+  });
+  if(error){setSyncStatus('error','Sync failed');toast('Sync failed','error');}
+  else setSyncStatus('synced','Saved & synced');
+}
+
+// ─── CAPTURE ───
+function capture(){
+  const note=notes.find(n=>n.id===activeId);
+  if(!note)return note;
+  const ti=document.getElementById('titleInput');
+  const ci=document.getElementById('contentInput');
+  if(ti)note.title=ti.value;
+  if(ci)note.content=ci.value;
+  note.updatedAt=Date.now();
+  return note;
+}
+
+// ─── SAVE ───
+async function saveNote(){
+  const note=capture();
+  if(!note)return;
+  await pushNote(note);
+  renderList();
+  toast('Saved & synced ✦');
+}
+
+// ─── AUTO-SAVE DEBOUNCE ───
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    const note=capture();
+    if(note)await pushNote(note);
+  },1500);
+}
+
+// ─── LIVE UPDATE ───
+function liveUpdate(field,value){
+  const note=notes.find(n=>n.id===activeId);
+  if(!note)return;
+  note[field]=value;
+  note.updatedAt=Date.now();
+  if(field==='content'){const wc=document.getElementById('wordCount');if(wc)wc.textContent=wordCount(value)+' words';}
+  if(field==='tag'){pushNote(note);renderList();}
+  else scheduleSave();
+}
+
+// ─── PIN ───
+async function togglePin(){
+  const note=notes.find(n=>n.id===activeId);
+  if(!note)return;
+  note.pinned=!note.pinned;
+  const btn=document.getElementById('pinBtn');
+  if(btn){btn.textContent=note.pinned?'📌 Pinned':'📍 Pin';btn.className=`pinned-toggle ${note.pinned?'pinned':''}`;}
+  renderList();
+  await pushNote(note);
+  toast(note.pinned?'Note pinned':'Note unpinned');
+}
+
+// ─── DELETE ───
+function askDelete(id){deleteTarget=id;document.getElementById('deleteModal').classList.add('open');}
+function closeModal(){deleteTarget=null;document.getElementById('deleteModal').classList.remove('open');}
+async function confirmDelete(){
+  setSyncStatus('syncing','Deleting…');
+  const {error}=await sb.from('notes').delete().eq('id',deleteTarget).eq('user_id',currentUser.id);
+  notes=notes.filter(n=>n.id!==deleteTarget);
+  if(activeId===deleteTarget){activeId=notes[0]?.id||null;}
+  closeModal();
+  renderList();
+  renderEditor();
+  if(error){setSyncStatus('error','Delete failed');toast('Delete failed','error');}
+  else{setSyncStatus('synced','Deleted');toast('Note deleted','error');}
+}
+
+// ─── LIST ───
+function renderList(){
+  const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
+  let filtered=notes.filter(n=>{
+    if(filter==='pinned'&&!n.pinned)return false;
+    if(filter==='today'&&!isToday(n.updatedAt))return false;
+    if(q&&!n.title.toLowerCase().includes(q)&&!n.content.toLowerCase().includes(q))return false;
+    return true;
+  });
+  filtered.sort((a,b)=>(b.pinned-a.pinned)||(b.updatedAt-a.updatedAt));
+  document.getElementById('statAll').textContent=notes.length;
+  document.getElementById('statPinned').textContent=notes.filter(n=>n.pinned).length;
+  document.getElementById('statToday').textContent=notes.filter(n=>isToday(n.updatedAt)).length;
+  const list=document.getElementById('notesList');
+  if(!filtered.length){list.innerHTML=`<div class="no-results">${q?'No matches':'No notes yet'}</div>`;return;}
+  const pinned=filtered.filter(n=>n.pinned),rest=filtered.filter(n=>!n.pinned);
+  let html='';
+  if(pinned.length){html+=`<div class="list-label">📌 Pinned</div>${pinned.map(renderCard).join('')}`;}
+  if(rest.length){if(pinned.length)html+=`<div class="list-label">Notes</div>`;html+=rest.map(renderCard).join('');}
+  list.innerHTML=html;
+}
+
+function renderCard(n){
+  const preview=n.content.replace(/\n/g,' ').slice(0,55)||'No content';
+  const tc=n.tag!=='none'?`tag-${n.tag}`:'';
+  return `<div class="note-card ${n.id===activeId?'active':''}" onclick="selectNote('${n.id}')">
+    <div class="nc-title">${escHtml(n.title)||'Untitled'}</div>
+    <div class="nc-preview">${escHtml(preview)}</div>
+    <div class="nc-meta">
+      <span class="nc-date">${fmtDate(n.updatedAt)}</span>
+      ${n.tag!=='none'?`<span class="nc-tag ${tc}">${n.tag}</span>`:''}
+    </div>
+  </div>`;
+}
+
+// ─── SELECT ───
+async function selectNote(id){
+  if(activeId&&activeId!==id){const n=capture();if(n)await pushNote(n);}
+  activeId=id;
+  renderList();
+  renderEditor();
+}
+
+// ─── EDITOR ───
+function renderEditor(){
+  const note=notes.find(n=>n.id===activeId);
+  const main=document.getElementById('mainArea');
+  if(!note){
+    main.innerHTML=`<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">Select a note</div><div class="empty-sub">Create a new note or pick one from the sidebar.</div></div>`;
+    return;
+  }
+  const tagOptions=TAGS.map(t=>`<option value="${t}" ${note.tag===t?'selected':''}>${t==='none'?'— no tag':t}</option>`).join('');
+  main.innerHTML=`
+    <div class="editor-toolbar">
+      <div class="toolbar-left">
+        <input class="title-input" id="titleInput" placeholder="Untitled…" value="${escHtml(note.title)}" oninput="liveUpdate('title',this.value)">
+      </div>
+      <div class="toolbar-actions">
+        <button class="btn btn-save" onclick="saveNote()">💾 Save</button>
+        <button class="btn btn-delete" onclick="askDelete('${note.id}')">🗑 Delete</button>
+      </div>
+    </div>
+    <div class="meta-row">
+      <span class="meta-date">Created ${fmtDate(note.createdAt)} · Updated ${fmtDate(note.updatedAt)}</span>
+      <select class="tag-select" onchange="liveUpdate('tag',this.value)">${tagOptions}</select>
+      <button class="pinned-toggle ${note.pinned?'pinned':''}" id="pinBtn" onclick="togglePin()">${note.pinned?'📌 Pinned':'📍 Pin'}</button>
+      <span class="word-count" id="wordCount">${wordCount(note.content)} words</span>
+    </div>
+    <div class="editor-area">
+      <textarea class="content-input" id="contentInput" placeholder="Start writing…" oninput="liveUpdate('content',this.value)">${escHtml(note.content)}</textarea>
+    </div>`;
+}
+
+function refreshEditorMeta(note){
+  const wc=document.getElementById('wordCount');
+  if(wc)wc.textContent=wordCount(note.content)+' words';
+}
+
+// ─── KEYBOARD ───
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveNote();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='n'){e.preventDefault();createNote();}
+  if(e.key==='Escape')closeModal();
+});
+
+// ─── BOOT ───
+init();
+</script>
+</body>
+</html>
