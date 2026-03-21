@@ -58,7 +58,8 @@ export default function Editor({ note, onUpdate, onDelete, onTogglePin, currentU
 
   return (
     <motion.main 
-      layoutId={note.id}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       className={styles.editor}
     >
       <header className={styles.header}>

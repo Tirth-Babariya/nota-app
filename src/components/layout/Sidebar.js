@@ -121,7 +121,6 @@ export default function Sidebar({
         <AnimatePresence mode="popLayout">
           {filteredNotes.map(note => (
             <motion.div
-              layoutId={note.id}
               key={note.id}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}

@@ -96,9 +96,15 @@ export default function App() {
       updated_at: new Date().getTime()
     }
 
+    // Optimistic Update
+    setNotes(prev => [newNote, ...prev])
+    setActiveId(newNote.id)
+
     const { error } = await supabase.from('notes').insert([newNote])
-    if (!error) {
-      setActiveId(newNote.id)
+    if (error) {
+      // Rollback on error
+      setNotes(prev => prev.filter(n => n.id !== newNote.id))
+      alert('Error creating note: ' + error.message)
     }
   }
 
