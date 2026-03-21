@@ -16,8 +16,26 @@ export async function loginWithMagicLink(email) {
 export async function shareNote(noteId, email, permission = 'edit') {
   const supabase = createClient()
   const { error } = await supabase.from('shared_notes').insert([
-    { note_id: noteId, shared_with_email: email, permission }
+    { note_id: noteId, shared_with_email: email, permission, status: 'pending' }
   ])
+  return { error }
+}
+
+export async function acceptInvite(inviteId) {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('shared_notes')
+    .update({ status: 'accepted' })
+    .eq('id', inviteId)
+  return { error }
+}
+
+export async function rejectInvite(inviteId) {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('shared_notes')
+    .delete()
+    .eq('id', inviteId)
   return { error }
 }
 

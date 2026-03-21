@@ -14,10 +14,12 @@ import {
   MoreVertical,
   Check,
   Loader2,
-  Users
+  Users,
+  LogIn
 } from 'lucide-react'
 import { signOut } from '@/lib/supabase/actions'
 import ThemeToggle from '../ui/ThemeToggle'
+import JoinModal from '../ui/JoinModal'
 import styles from './sidebar.module.css'
 
 export default function Sidebar({ 
@@ -32,6 +34,7 @@ export default function Sidebar({
   setSearchQuery
 }) {
   const [isSignOutLoading, setIsSignOutLoading] = useState(false)
+  const [showJoin, setShowJoin] = useState(false)
 
   const handleSignOut = async () => {
     setIsSignOutLoading(true)
@@ -40,7 +43,11 @@ export default function Sidebar({
 
   const filteredNotes = notes.filter(n => {
     if (filter === 'pinned' && !n.pinned) return false
-    if (filter === 'shared' && n.user_id === user.id) return false
+    if (filter === 'shared') {
+      const isReceived = n.user_id !== user.id && n.shared_notes?.some(s => s.shared_with_email === user.email && s.status === 'accepted')
+      const isSent = n.shared_notes && n.shared_notes.length > 0 && n.user_id === user.id
+      if (!isReceived && !isSent) return false
+    }
     if (searchQuery && !n.title.toLowerCase().includes(searchQuery.toLowerCase()) && !n.content.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   }).sort((a, b) => (b.pinned - a.pinned) || (new Date(b.updated_at) - new Date(a.updated_at)))
@@ -54,6 +61,9 @@ export default function Sidebar({
             <span>Nota</span>
           </div>
           <div className={styles.headerActions}>
+            <button className={styles.iconBtn} onClick={() => setShowJoin(true)} title="Join Note">
+              <LogIn size={18} />
+            </button>
             <ThemeToggle />
             <button className={styles.iconBtn} onClick={onCreate} title="New Note">
               <Plus size={18} />
@@ -112,7 +122,9 @@ export default function Sidebar({
         >
           <Users size={16} />
           <span>Shared</span>
-          <span className={styles.count}>{notes.filter(n => n.user_id !== user.id).length}</span>
+          <span className={styles.count}>
+            {notes.filter(n => (n.user_id !== user.id) || (n.shared_notes && n.shared_notes.length > 0)).length}
+          </span>
         </button>
       </nav>
 
@@ -134,6 +146,9 @@ export default function Sidebar({
                 <span className={styles.cardTitle}>{note.title || 'Untitled'}</span>
                 <div className={styles.cardStickyIcons}>
                   {note.user_id !== user.id && <Users size={10} className={styles.sharedIcon} />}
+                  {note.user_id === user.id && note.shared_notes?.some(s => s.status === 'pending') && (
+                    <span className={styles.pendingBadge}>Pending</span>
+                  )}
                   {note.pinned && <Pin size={10} className={styles.pinIcon} />}
                 </div>
               </div>
@@ -151,6 +166,16 @@ export default function Sidebar({
           ))}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {showJoin && (
+          <JoinModal 
+            user={user} 
+            onJoined={onSelect} 
+            onClose={() => setShowJoin(false)} 
+          />
+        )}
+      </AnimatePresence>
     </aside>
   )
 }

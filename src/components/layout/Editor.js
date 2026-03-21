@@ -25,15 +25,27 @@ export default function Editor({ note, onUpdate, onDelete, onTogglePin, currentU
   const [showShare, setShowShare] = useState(false)
   const timerRef = useRef(null)
 
+  const lastSaveTime = useRef(Date.now())
+
   useEffect(() => {
+    // Sync state when ID changes (switching notes)
     setContent(note?.content || '')
     setTitle(note?.title || '')
   }, [note?.id])
+
+  // Sync state on external updates (realtime) if we're not actively saving
+  useEffect(() => {
+    if (!isSaving && Date.now() - lastSaveTime.current > 2000) {
+      if (note?.content !== undefined && note.content !== content) setContent(note.content)
+      if (note?.title !== undefined && note.title !== title) setTitle(note.title)
+    }
+  }, [note?.content, note?.title])
 
   const handleUpdate = (updates) => {
     if (timerRef.current) clearTimeout(timerRef.current)
     
     setIsSaving(true)
+    lastSaveTime.current = Date.now()
     timerRef.current = setTimeout(async () => {
       await onUpdate(note.id, updates)
       setIsSaving(false)

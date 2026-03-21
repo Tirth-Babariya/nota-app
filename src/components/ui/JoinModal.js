@@ -2,32 +2,47 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Mail, Send, CheckCircle, AlertCircle, Copy } from 'lucide-react'
+import { X, Hash, LogIn, CheckCircle, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { shareNote } from '@/lib/supabase/actions'
 import styles from './share.module.css'
 
-export default function ShareModal({ noteId, onClose }) {
-  const [email, setEmail] = useState('')
-  const [copying, setCopying] = useState(false)
+export default function JoinModal({ user, onJoined, onClose }) {
+  const [noteId, setNoteId] = useState('')
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null) // 'success' | 'error'
+  const supabase = createClient()
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(noteId)
-    setCopying(true)
-    setTimeout(() => setCopying(false), 2000)
-  }
-
-  const handleShare = async (e) => {
+  const handleJoin = async (e) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await shareNote(noteId, email)
+    setStatus(null)
+
+    // 1. Check if note exists
+    const { data: note, error: fetchError } = await supabase
+      .from('notes')
+      .select('id')
+      .eq('id', noteId)
+      .single()
+
+    if (fetchError || !note) {
+      setStatus('error')
+      setLoading(false)
+      return
+    }
+
+    // 2. Add to shared_notes for this user
+    const { error: shareError } = await shareNote(noteId, user.email)
+    
     setLoading(false)
-    if (error) {
+    if (shareError) {
       setStatus('error')
     } else {
       setStatus('success')
-      setTimeout(onClose, 2000)
+      setTimeout(() => {
+        onJoined(noteId)
+        onClose()
+      }, 1500)
     }
   }
 
@@ -47,39 +62,27 @@ export default function ShareModal({ noteId, onClose }) {
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.header}>
-          <h3>Share Note</h3>
+          <h3>Join Shared Note</h3>
           <button onClick={onClose} className={styles.closeBtn}><X size={18} /></button>
         </div>
 
         <div className={styles.body}>
-          <p className={styles.desc}>Invite someone to edit this note with you. They must have a Nota account.</p>
+          <p className={styles.desc}>Enter a Note ID shared with you to add it to your collection.</p>
           
-          <div className={styles.divider}><span>OR</span></div>
-
-          <div className={styles.copySection}>
-            <p className={styles.desc}>Share this unique Note ID directly:</p>
-            <div className={styles.copyBox}>
-              <code>{noteId}</code>
-              <button onClick={handleCopy} className={styles.copyBtn}>
-                {copying ? <CheckCircle size={14} /> : <Copy size={14} />}
-              </button>
-            </div>
-          </div>
-
-          <form onSubmit={handleShare} className={styles.form}>
+          <form onSubmit={handleJoin} className={styles.form}>
             <div className={styles.inputGroup}>
-              <Mail size={16} className={styles.inputIcon} />
+              <Hash size={16} className={styles.inputIcon} />
               <input 
-                type="email" 
-                placeholder="friend@email.com" 
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                type="text" 
+                placeholder="note-id-123..." 
+                value={noteId}
+                onChange={e => setNoteId(e.target.value)}
                 required
                 className={styles.input}
               />
             </div>
             <button type="submit" disabled={loading || status === 'success'} className={styles.shareBtn}>
-              {loading ? 'Inviting...' : status === 'success' ? 'Link Sent!' : 'Invite to Edit'}
+              {loading ? 'Joining...' : status === 'success' ? 'Joined!' : 'Add to Collection'}
             </button>
           </form>
 
@@ -91,7 +94,7 @@ export default function ShareModal({ noteId, onClose }) {
                 className={styles.success}
               >
                 <CheckCircle size={14} />
-                <span>Successfully shared with {email}</span>
+                <span>Added to your shared notes!</span>
               </motion.div>
             )}
             {status === 'error' && (
@@ -101,7 +104,7 @@ export default function ShareModal({ noteId, onClose }) {
                 className={styles.error}
               >
                 <AlertCircle size={14} />
-                <span>Error sharing. Make sure the table exists.</span>
+                <span>Note not found or already joined.</span>
               </motion.div>
             )}
           </AnimatePresence>

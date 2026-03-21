@@ -21,3 +21,20 @@
   border-top-color: var(--accent);
   border-radius: 50%;
 }
+
+.notification {
+  position: fixed;
+  top: 32px;
+  right: 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid #22c55e;
+  padding: 16px 24px;
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  z-index: 3000;
+  backdrop-filter: blur(8px);
+}

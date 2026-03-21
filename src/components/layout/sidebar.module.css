@@ -267,6 +267,16 @@
   color: var(--text-muted);
 }
 
+.pendingBadge {
+  font-size: 8px;
+  text-transform: uppercase;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
 .tagBadge {
   background: var(--border);
   padding: 2px 6px;
