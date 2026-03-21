@@ -69,16 +69,18 @@ export default function App() {
     const { eventType, new: newRecord, old: oldRecord } = payload
     
     setNotes(prev => {
+      let next = [...prev]
       if (eventType === 'INSERT') {
-        const exists = prev.some(n => n.id === newRecord.id)
-        if (exists) return prev
-        return [newRecord, ...prev]
+        next.unshift(newRecord)
+      } else if (eventType === 'UPDATE') {
+        next = next.map(n => n.id === newRecord.id ? { ...n, ...newRecord } : n)
+      } else if (eventType === 'DELETE') {
+        next = next.filter(n => n.id !== oldRecord.id)
       }
-      if (eventType === 'UPDATE') {
-        return prev.map(n => n.id === newRecord.id ? { ...n, ...newRecord } : n)
-      }
-      if (eventType === 'DELETE') return prev.filter(n => n.id !== oldRecord.id)
-      return prev
+      
+      // Safety dedupe
+      return Array.from(new Map(next.map(n => [n.id, n])).values())
+        .sort((a,b) => (b.updated_at || 0) - (a.updated_at || 0))
     })
   }
 
