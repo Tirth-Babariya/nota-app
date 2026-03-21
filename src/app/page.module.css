@@ -1,0 +1,23 @@
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background: var(--bg);
+}
+
+.loading {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+}
